@@ -14,3 +14,6 @@ data/npy
 data/json
 data/glb
 *.log
+*.json
+*.model
+*.weights
