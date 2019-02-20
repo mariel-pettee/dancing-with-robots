@@ -205,11 +205,11 @@ class Logger(keras.callbacks.Callback):
     self.epoch = 0 # stores number of completed epochs
     self.save_frequency = 1 # configures how often we'll save the model and weights
     self.date = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H:%M')
-    if not os.path.exists('snapshots'): os.makedirs('snapshots')
+    if not os.path.exists('models'): os.makedirs('models')
     self.save_config()
     
   def save_config(self):
-    with open('snapshots/' + self.date + '-config.json', 'w') as out:
+    with open('models/' + self.date + '-config.json', 'w') as out:
       json.dump({
         'look_back': look_back,
         'cells': cells,
@@ -222,7 +222,7 @@ class Logger(keras.callbacks.Callback):
     if (batch+1 == shape[0]): # batch value is batch index, which is 0-based
       self.epoch += 1
       if (self.epoch > 0) and (self.epoch % self.save_frequency == 0):
-        path = 'snapshots/' + self.date + '-' + str(batch)
+        path = 'models/' + self.date + '-' + str(batch)
         model.save(path + '.model')
         model.save_weights(path + '.weights')
 
@@ -231,7 +231,7 @@ callbacks = [Logger(), TerminateOnNaN()]
 history = model.fit(train_x, train_y, epochs=1, batch_size=1, shuffle=False, callbacks=callbacks)
 
 from datetime import datetime
-model_path = '/project/hep/demers/mnp3/AI/dancing-with-robots/snapshots/'+datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
+model_path = '/project/hep/demers/mnp3/AI/dancing-with-robots/models/'+datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
 
 # Save trained model
 model.save(model_path + '.model')
