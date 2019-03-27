@@ -6,7 +6,6 @@ bleach==2.1.4
 certifi==2017.7.27.1
 cffi==1.10.0
 chardet==3.0.4
-conda==4.3.30
 cryptography==2.0.3
 cycler==0.10.0
 decorator==4.3.0
@@ -51,7 +50,6 @@ prometheus-client==0.3.1
 prompt-toolkit==1.0.15
 protobuf==3.6.1
 ptyprocess==0.6.0
-pycosat==0.6.2
 pycparser==2.18
 pydot==1.2.4
 pydotplus==2.0.2
@@ -65,7 +63,6 @@ PyYAML==3.13
 pyzmq==17.1.2
 qtconsole==4.4.2
 requests==2.18.4
-ruamel-yaml==0.11.14
 scipy==1.1.0
 Send2Trash==1.5.0
 simplegeneric==0.8.1

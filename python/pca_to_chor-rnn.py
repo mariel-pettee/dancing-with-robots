@@ -9,14 +9,15 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 import sys
+from math import floor
+from datetime import datetime
 sys.path.append('/project/hep/demers/mnp3/AI/dancing-with-robots/')
+
 # set a seed to control all randomness
 from tensorflow import set_random_seed
 from numpy.random import seed
 set_random_seed(1)
 seed(1)
-
-print("Modules imported!")
 
 # Load some data:
 X = np.load('/project/hep/demers/mnp3/AI/dancing-with-robots/data/npy/mariel_knownbetter.npy')
@@ -24,10 +25,79 @@ n_joints, n_timeframes, n_dims = X.shape
 labels = ['ARIEL.position', 'C7.position', 'CLAV.position', 'LANK.position', 'LBHD.position', 'LBSH.position', 'LBWT.position', 'LELB.position', 'LFHD.position', 'LFRM.position', 'LFSH.position', 'LFWT.position', 'LHEL.position', 'LIEL.position', 'LIHAND.position', 'LIWR.position', 'LKNE.position', 'LKNI.position', 'LMT1.position', 'LMT5.position', 'LOHAND.position', 'LOWR.position', 'LSHN.position', 'LTHI.position', 'LTOE.position', 'LUPA.position', 'LabelingHips.position', 'MBWT.position', 'MFWT.position', 'RANK.position', 'RBHD.position', 'RBSH.position', 'RBWT.position', 'RELB.position', 'RFHD.position', 'RFRM.position', 'RFSH.position', 'RFWT.position', 'RHEL.position', 'RIEL.position', 'RIHAND.position', 'RIWR.position', 'RKNE.position', 'RKNI.position', 'RMT1.position', 'RMT5.position', 'ROHAND.position', 'ROWR.position', 'RSHN.position', 'RTHI.position', 'RTOE.position', 'RUPA.position', 'STRN.position', 'SolvingHips.position', 'T10.position']
 print("Input dataset shape (n_joints, n_timeframes, n_dimensions):", X.shape) # (number of joints) X (number of time frames) X (x,y,z dimensions)
 
+# define functions 
 
-from math import floor
+import mpl_toolkits.mplot3d.axes3d as p3
+from mpl_toolkits.mplot3d.art3d import juggle_axes
+import matplotlib.pyplot as plt
+from IPython.display import HTML
+from matplotlib import animation
+from copy import deepcopy
+import matplotlib
 
-# define functions to flatten and unflatten data
+# ask matplotlib to plot up to 2^128 frames in animations
+matplotlib.rcParams['animation.embed_limit'] = 2**128
+
+def update_points(time, points, df):
+  '''
+  Callback function called by plotting function below. Mutates the vertex
+  positions of each value in `points` so the animation moves
+  @param int time: the index of the time slice to visualize within `df`
+  @param mpl_toolkits.mplot3d.art3d.Path3DCollection points: the actual
+    geometry collection whose internal values this function mutates to move
+    the displayed points
+  @param numpy.ndarray df: a numpy array with the following three axes:
+    df.shape[0] = n_vertices
+    df.shape[1] = n_time_slices
+    df.shape[2] = n_dimensions
+  '''
+  points._offsets3d = juggle_axes(df[:,time,0], df[:,time,1], df[:,time,2], 'z')
+
+def get_plot(df, axis_min=0, axis_max=1, frames=200, speed=45, start_time_index=0, run_tests=True):
+  '''
+  General function that can plot numpy arrays in either of two shapes.
+  @param numpy.ndarray df: a numpy array with either of the following two shapes:
+    Possibility one:
+      df.shape[0] = n_vertices
+      df.shape[1] = n_time_slices
+      df.shape[2] = n_dimensions
+    Possibility two:
+      df.shape[0] = n_time_slices
+      df.shape[1] = [x0, y0, z0, x1, y1, z1, ... xn-1, yn-1, zn-1]
+    If the latter is received, we "unflatten" the df into the three dimensional variant
+  @param int axis_min: the minimum value of each axis scale
+  @param int axis_max: the maximum value of each axis scale
+  @param int frames: the number of time slices to animate.
+  @param int speed: the temporal duration of each frame. Increase to boost fps.
+  @param int start_time_index: the index position of the first frame in df within X. In other
+    words, if df starts at the nth time frame from X, start_time_index = n.
+  @param bool run_tests: boolean indicating whether we'll run the data validation
+    tests, should we need to unflatten the array. Should be set to False if we're passing
+    in predicted values, as they'll differ from X values.
+  '''
+  df = deepcopy(df)
+  if len(df.shape) == 2:
+    df = unflatten(df, start_time_index=start_time_index, run_tests=run_tests)
+  # center the data for visualization
+  df -= np.amin(df, axis=(0, 1))
+  df /= np.amax(df, axis=(0, 1))
+  # scale the z dimension
+  df[:,:,2] *= -1
+  df[:,:,2] += 1  
+  # plot the data
+  fig = plt.figure()
+  ax = p3.Axes3D(fig)
+  ax.set_xlim(axis_min, axis_max)
+  ax.set_ylim(axis_min, axis_max)
+  ax.set_zlim(axis_min, axis_max*1.5)
+  points = ax.scatter(df[:,0,0], df[:,0,1], df[:,0,2], depthshade=False) # x,y,z vals
+  return animation.FuncAnimation(fig,
+    update_points,
+    frames,
+    interval=speed,
+    fargs=(points, df),
+    blit=False  
+  ).save('/project/hep/demers/mnp3/AI/dancing-with-robots/videos/pca_generated_sequence+'+datetime.now().strftime('%Y-%m-%d-%H:%M:%S')+'.mp4')
 
 def flatten(df, run_tests=True):
   '''
@@ -90,6 +160,11 @@ def unflatten(df, run_tests=True, start_time_index=0):
 
   return unflattened
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    r = np.exp(x - np.max(x))
+    return r / r.sum()
+
 flat = flatten(X)
 unflat = unflatten(flat)
 
@@ -109,8 +184,8 @@ print('Size of the dataframe: {}'.format(df.shape))
 print("Starting PCA decomposition...")
 
 from sklearn.decomposition import PCA
-pca = PCA(n_components=2) # can either do this by num of desired components...
-# pca = PCA(.95) # ...or by percentage variance you want explained 
+# pca = PCA(n_components=2) # can either do this by num of desired components...
+pca = PCA(.95) # ...or by percentage variance you want explained 
 pca_columns=[]
 
 pca_result = pca.fit_transform(df.values)
@@ -121,7 +196,6 @@ for i in range(pca_result.shape[1]):
 print('Explained variation per principal component: {}'.format(pca.explained_variance_ratio_))
 
 # Get the transformed dataset 
-df[pca_columns]
 pca_data = df[pca_columns]
 
 # train_x has shape: n_samples, look_back, n_vertices*3
@@ -156,7 +230,7 @@ cells = [32, 32, 32, 32] # number of cells in each lstm layer
 output_dims = int(pca_data.shape[1]) # number of coordinate values to be predicted by each gaussian model
 input_shape = (look_back, output_dims) # shape of each input feature
 use_mdn = True # whether to use the MDN final layer or not
-n_mixes = 2 # number of gaussian models to build if use_mdn == True
+n_mixes = 6 # number of gaussian models to build if use_mdn == True
 
 # optimizer params
 lr = 0.00001 # the learning rate of the model
@@ -193,46 +267,89 @@ model.evaluate(train_x, train_y)
 
 
 # Train the model
-
 from keras.callbacks import TerminateOnNaN
 from livelossplot import PlotLossesKeras
-from datetime import datetime
 import time, keras, os, json
   
 class Logger(keras.callbacks.Callback):
-  '''Save the model and its weights every `self.save_frequency` epochs'''
-  def __init__(self):
-    self.epoch = 0 # stores number of completed epochs
-    self.save_frequency = 1 # configures how often we'll save the model and weights
-    self.date = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H:%M')
-    if not os.path.exists('models'): os.makedirs('models')
-    self.save_config()
+    '''Save the model and its weights every `self.save_frequency` epochs'''
+    def __init__(self):
+        self.epoch = 0 # stores number of completed epochs
+        self.save_frequency = 1 # configures how often we'll save the model and weights
+        self.date = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H:%M')
+        if not os.path.exists('models'): os.makedirs('models')
+        self.save_config()
     
-  def save_config(self):
-    with open('models/' + self.date + '-config.json', 'w') as out:
-      json.dump({
-        'look_back': look_back,
-        'cells': cells,
-        'use_mdn': use_mdn,
-        'n_mixes': n_mixes,
-        'lr': lr,
-      }, out)
+    def save_config(self):
+        with open('models/' + self.date + '-config.json', 'w') as out:
+            json.dump({
+            'look_back': look_back,
+            'cells': cells,
+            'use_mdn': use_mdn,
+            'n_mixes': n_mixes,
+            'lr': lr,
+            }, out)
   
-  def on_batch_end(self, batch, logs={}, shape=train_x.shape):
-    if (batch+1 == shape[0]): # batch value is batch index, which is 0-based
-      self.epoch += 1
-      if (self.epoch > 0) and (self.epoch % self.save_frequency == 0):
-        path = 'models/' + self.date + '-' + str(batch)
-        model.save(path + '.model')
-        model.save_weights(path + '.weights')
+    def on_batch_end(self, batch, logs={}, shape=train_x.shape):
+        if (batch+1 == shape[0]): # batch value is batch index, which is 0-based
+            self.epoch += 1
+            if (self.epoch > 0) and (self.epoch % self.save_frequency == 0):
+                path = 'models/' + self.date + '-' + str(batch)
+                model.save(path + '.model')
+                model.save_weights(path + '.weights')
 
-#K.set_value(optimizer.lr, 0.00001)
 callbacks = [Logger(), TerminateOnNaN()]
-history = model.fit(train_x, train_y, epochs=1, batch_size=1, shuffle=False, callbacks=callbacks)
+history = model.fit(train_x, train_y, epochs=200, batch_size=5, shuffle=False, callbacks=callbacks, verbose=2)
 
 from datetime import datetime
-model_path = '/project/hep/demers/mnp3/AI/dancing-with-robots/models/'+datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
+model_path = '/project/hep/demers/mnp3/AI/dancing-with-robots/models/pca_32_50epochs_'+datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
 
 # Save trained model
 model.save(model_path + '.model')
 model.save_weights(model_path + '.weights')
+
+print("PCA inverse transform matrix:", pca.components_,)
+
+# Predict a sequence in reduced-dimensional space, then project it back into full-dimensional space to visualize it
+n_frames = 300 # number of frames to generate
+frames = []
+
+seed = np.random.randint(0, len(train_x)-1)
+x = np.expand_dims(train_x[seed], axis=0)
+print(' * seeding with', seed)
+
+for i in range(n_frames):
+    y = model.predict(x).squeeze()
+    mus = y[:n_mixes*output_dims]
+    sigs = y[n_mixes*output_dims:-n_mixes]
+    alphas = softmax(y[-n_mixes:])
+
+    # select the alpha channel to use
+    alpha_idx = np.argmax(alphas)
+
+    # grab the mus and sigs associated with the selected alpha_idx
+    frame_mus = mus.ravel()[alpha_idx*output_dims : (alpha_idx+1)*output_dims]
+    frame_sig = sigs[alpha_idx] / 100
+
+    # now sample from each Gaussian
+    positions = [np.random.normal(loc=m, scale=frame_sig) for m in frame_mus]
+    positions = frame_mus
+
+    # add these positions to the results
+    frames.append(positions)
+
+    # pull out a new training example - stack the new result on
+    # all values after the first from the bottom-most value in the x's
+    start = x[:,1:,:]
+    end = np.expand_dims( np.expand_dims(positions, axis=0), axis=0 )
+    x = np.concatenate((start, end), axis=1)
+    
+frames = np.array(frames)
+full_dimensions=np.dot(frames, pca.components_)
+print("Output dimensions:", full_dimensions.shape)
+
+print("Predicted frames:",full_dimensions)
+# np.save("/project/hep/demers/mnp3/AI/dancing-with-robots/generated_sequences/pca_inverse_transform"+datetime.now().strftime('%Y-%m-%d-%H:%M:%S')+".npy",pca.components_)
+np.save("/project/hep/demers/mnp3/AI/dancing-with-robots/generated_sequences/pca_full_dimensions"+datetime.now().strftime('%Y-%m-%d-%H:%M:%S')+".npy",full_dimensions)
+
+get_plot(full_dimensions, frames=n_frames, run_tests=False)

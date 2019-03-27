@@ -1,14 +1,13 @@
 #!/bin/bash
-#SBATCH --partition scavenge
+#SBATCH --partition gpu
 #SBATCH --nodes 1
 #SBATCH --ntasks-per-node 1
 #SBATCH --mem-per-cpu 8G
-#SBATCH --time 1:00:00
-#SBATCH --job-name red-rnn
-#SBATCH --output logs/reduced-rnn-%J.log
+#SBATCH --time 10:00:00
+#SBATCH --job-name pca-gpu
+#SBATCH --output logs/pca-gpu-%J.log
 #SBATCH -c 2
 
 cd /project/hep/demers/mnp3/AI/dancing-with-robots/
 source setup.sh
-source activate env
-python rnn_reduced_dim.py
+python python/pca_to_chor-rnn.py
